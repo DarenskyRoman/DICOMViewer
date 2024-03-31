@@ -1,28 +1,43 @@
-import matplotlib.pyplot as plt
-from matplotlib.widgets import Slider
-from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg, NavigationToolbar2QT
-from PyQt6.QtWidgets import QApplication, QMainWindow, QFileDialog
+from PyQt6.QtWidgets import (
+    QApplication,
+    QMainWindow,
+    QFileDialog,
+    QGraphicsScene,
+    QGraphicsPixmapItem
+)
+from PyQt6.QtGui import QImage, QPixmap
 from PyQt6 import uic
+from qimage2ndarray import array2qimage
+
 import logic
-from matplotlib.figure import Figure
 
+class ImagesManipulator():
+    def __init__(self, view, slider, images):
+        self.scene = QGraphicsScene()
+        self.view = view
+        self.slider = slider
+        self.image_item = QGraphicsPixmapItem()
+        self.images = self.setImages(images)
 
-class MplCanvas(FigureCanvasQTAgg):
+        self.view.setScene(self.scene)
+        self.scene.addItem(self.image_item)
+        #self.view.centerOn(self.image_item)
+        self.slider.setMinimum(0)
+        self.slider.setMaximum(len(self.images) - 1)
 
-    def __init__(self, width, height):
-        self.fig = Figure(figsize=(width, height))
-        self.axes = self.fig.add_subplot(111)
-        super(MplCanvas, self).__init__(self.fig)
+        self.slider.valueChanged.connect(self.update_image)
+        self.update_image(0)
 
-    def addSlider(self, valmax):
-        ax = self.fig.add_axes([0.25, 0.1, 0.65, 0.03])
-        self.slider = Slider(ax=ax,
-                            label="Slice",
-                            valmin=0,
-                            valinit=0,
-                            valstep=1,
-                            valmax=valmax)
+    def setImages(self, images):
+        return [array2qimage(image, normalize=True) for image in images]
 
+    def update_image(self, value):
+        try:
+            self.image_item.setPixmap(QPixmap.fromImage(self.images[value]))
+
+        except IndexError:
+            print("Error: No image at index", value)
+    
 
 class UI(QMainWindow):
     def __init__(self):
@@ -30,47 +45,35 @@ class UI(QMainWindow):
 
         uic.loadUi("silly.ui", self)
         
-        self.axialCanvas = MplCanvas(1, 1)
-        axialToolbar = NavigationToolbar2QT(self.axialCanvas, self)
-        self.axialLayout.addWidget(self.axialCanvas)
-        self.axialLayout.addWidget(axialToolbar)
-
-        self.sagittalCanvas = MplCanvas(1, 1)
-        sagittalToolbar = NavigationToolbar2QT(self.sagittalCanvas, self)
-        self.sagittalLayout.addWidget(self.sagittalCanvas)
-        self.sagittalLayout.addWidget(sagittalToolbar)
-
-        self.coronalCanvas = MplCanvas(1, 1)
-        coronalToolbar = NavigationToolbar2QT(self.coronalCanvas, self)
-        self.coronalLayout.addWidget(self.coronalCanvas)
-        self.coronalLayout.addWidget(coronalToolbar)
-
-        
         self.openFile.triggered.connect(self.fileSearch)
-        self.bodyPartsList.itemDoubleClicked.connect(self.bodyPartSelection)
+        self.seriesList.itemDoubleClicked.connect(self.seriesSelection)
 
+    def seriesSelection(self):
 
-    def bodyPartSelection(self, bodyPart):
-        self.axialCanvas.axes.cla()
-        #self.sagittalCanvas.clear()
-        #self.coronalCanvas.clear()
+        if hasattr(self, "axialImagesShow"):
+            del self.axialImagesShow
 
-        slices = self.volumes[f"{bodyPart.text()}"]
-        
-        self.axialCanvas.addSlider(len(slices)-1)
-        self.axialCanvas.slider.on_changed(lambda val: self.plotAxialSLice(val, slices))
-        self.plotAxialSLice(0, slices)
-        #self.axialLayout.addWidget(slider)
+        index = self.seriesList.currentRow()
+        slices = logic.getPixelsForSerie(self.series[index])
+        del index
 
-    def plotAxialSLice(self, val, slices):
-        self.axialCanvas.axes.imshow(slices[val], cmap=plt.cm.bone)
-        self.axialCanvas.draw()
+        self.axialImagesShow = ImagesManipulator(self.axialGraphicsView, self.axialSlider, slices)
 
     def fileSearch(self):
         dir = QFileDialog.getExistingDirectory(caption="Select directory")
-        self.volumes = logic.read(dir)
-        for bodyPart in self.volumes.keys():
-            self.bodyPartsList.addItem(f"{bodyPart}")
+
+        if self.seriesList != 0:
+            self.seriesList.clear()
+
+        self.series = logic.read(dir)
+
+        i = 1
+
+        for serieDescription in self.series:
+            self.seriesList.addItem(f"{i} {serieDescription.description}")
+            i += 1
+
+        del i
 
 if __name__ == "__main__": 
 

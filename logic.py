@@ -1,28 +1,18 @@
-from pydicom import dcmread
-from pathlib import Path
-import numpy as np
+from pydicom_series import read_files
+
 
 def read(dir):
-    dir = Path(dir)
-    volumes = {}
-    for patient_dir in dir.iterdir():
-        if patient_dir.is_dir():
-            for file in patient_dir.iterdir():
-                try:
-                    dc = dcmread(file, force=True)
-                    body_part = dc.get('BodyPartExamined')
-                    if body_part not in volumes.keys():
-                        volumes[f"{body_part}"] = []
+    
+    try:
+        return read_files(dir, showProgress=False, readPixelData=False, force=True)
+    
+    except Exception as e:
+        print(f"Can't read data properly: {e}")
 
-                    pixel_data = dc.get('PixelData')
 
-                    if pixel_data is None:
-                        print("Pixel Data not found:", file)
-                        continue
+def getPixelsForSerie(data):
 
-                    pixel_array = np.frombuffer(pixel_data, dtype=np.uint16)
-                    volumes[f"{body_part}"].append(pixel_array.reshape(int(dc.Rows), int(dc.Columns)))
-
-                except Exception as e:
-                    print(f"Error with file {file}: {e}")
-    return volumes
+    try:
+        return data.get_pixel_array()
+    except Exception as e:
+        print(f"Can't get images data: {e}")
