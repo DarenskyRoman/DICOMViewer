@@ -6,3 +6,4 @@ structure*
 dicomdir.txt
 CT/
 54879843/
+pydicom_series.py

@@ -1,89 +1,10 @@
 import gc
 import os
-import time
-import sys
 
 import pydicom
 from pydicom.sequence import Sequence
 from pydicom.uid import UID
 import numpy as np
-
-
-# Helper functions and classes
-class ProgressBar(object):
-    """ To print progress to the screen.
-    """
-
-    def __init__(self, char='-', length=20):
-        self.char = char
-        self.length = length
-        self.progress = 0.0
-        self.nbits = 0
-        self.what = ''
-
-    def Start(self, what=''):
-        """ Start(what='')
-        Start the progress bar, displaying the given text first.
-        Make sure not to print anything untill after calling
-        Finish(). Messages can be printed while displaying
-        progess by using printMessage().
-        """
-        self.what = what
-        self.progress = 0.0
-        self.nbits = 0
-        sys.stdout.write(what + " [")
-
-    def Stop(self, message=""):
-        """ Stop the progress bar where it is now.
-        Optionally print a message behind it."""
-        delta = int(self.length - self.nbits)
-        sys.stdout.write(" " * delta + "] " + message + "\n")
-
-    def Finish(self, message=""):
-        """ Finish the progress bar, setting it to 100% if it
-        was not already. Optionally print a message behind the bar.
-        """
-        delta = int(self.length - self.nbits)
-        sys.stdout.write(self.char * delta + "] " + message + "\n")
-
-    def Update(self, newProgress):
-        """ Update progress. Progress is given as a number
-        between 0 and 1.
-        """
-        self.progress = newProgress
-        required = self.length * (newProgress)
-        delta = int(required - self.nbits)
-        if delta > 0:
-            sys.stdout.write(self.char * delta)
-            self.nbits += delta
-
-    def PrintMessage(self, message):
-        """ Print a message (for example a warning).
-        The message is printed behind the progress bar,
-        and a new bar is started.
-        """
-        self.Stop(message)
-        self.Start(self.what)
-
-
-def _dummyProgressCallback(progress):
-    """ A callback to indicate progress that does nothing. """
-    pass
-
-
-_progressBar = ProgressBar()
-
-
-def _progressCallback(progress):
-    """ The default callback for displaying progress. """
-    if isinstance(progress, str):
-        _progressBar.Start(progress)
-        _progressBar._t0 = time.time()
-    elif progress is None:
-        dt = time.time() - _progressBar._t0
-        _progressBar.Finish(f'{dt:2.2f} seconds')
-    else:
-        _progressBar.Update(progress)
 
 
 def _listFiles(files, path):
@@ -177,7 +98,7 @@ def _splitSerieIfRequired(serie, series):
         # Create new series
         series2insert = []
         for L in L2:
-            newSerie = DicomSeries(serie.suid, serie._showProgress)
+            newSerie = DicomSeries(serie.suid)
             newSerie._datasets = Sequence(L)
             series2insert.append(newSerie)
 
@@ -200,7 +121,7 @@ def _getPixelDataFromDataset(ds):
     try:
         data = ds.pixel_array
     except:
-        ds.file_meta.TransferSyntaxUID = UID("1.2.840.10008.1.2.1")
+        ds.file_meta.TransferSyntaxUID = UID("1.2.840.10008.1.2")
         data = ds.pixel_array
 
     # Remove data (mark as deferred)
@@ -300,8 +221,8 @@ def find_shape(dataset):
     return shape
 
 
-def read_files(path, showProgress=False, readPixelData=False, force=False):
-    """ read_files(path, showProgress=False, readPixelData=False)
+def read_files(path, readPixelData=False, force=False):
+    """ read_files(path, readPixelData=False)
 
     Reads dicom files and returns a list of DicomSeries objects, which
     contain information about the data, and can be used to load the
@@ -309,17 +230,12 @@ def read_files(path, showProgress=False, readPixelData=False, force=False):
 
     The parameter "path" can also be a list of files or directories.
 
-    If the callable "showProgress" is given, it is called with a single
-    argument to indicate the progress. The argument is a string when a
-    progress is started (indicating what is processed). A float indicates
-    progress updates. The paremeter is None when the progress is finished.
-    When "showProgress" is True, a default callback is used that writes
-    to stdout. By default, no progress is shown.
-
-    if readPixelData is True, the pixel data of all series is read. By
+    If readPixelData is True, the pixel data of all series is read. By
     default the loading of pixeldata is deferred until it is requested
     using the DicomSeries.get_pixel_array() method. In general, both
     methods should be equally fast.
+
+    If force is set to True, files without .dcm extention can be read.
     """
 
     # Init list of files
@@ -347,12 +263,6 @@ def read_files(path, showProgress=False, readPixelData=False, force=False):
     else:
         raise ValueError('The path argument must be a string or list.')
 
-    # Set default progress callback?
-    if showProgress is True:
-        showProgress = _progressCallback
-    if not hasattr(showProgress, '__call__'):
-        showProgress = _dummyProgressCallback
-
     # Set defer size
     deferSize = 16383  # 128**2-1
     if readPixelData:
@@ -361,7 +271,7 @@ def read_files(path, showProgress=False, readPixelData=False, force=False):
     # Gather file data and put in DicomSeries
     series = {}
     count = 0
-    showProgress('Loading series information:')
+
     for filename in files:
 
         # Skip DICOMDIR files
@@ -374,10 +284,7 @@ def read_files(path, showProgress=False, readPixelData=False, force=False):
         except pydicom.filereader.InvalidDicomError:
             continue  # skip non-dicom file
         except Exception as why:
-            if showProgress is _progressCallback:
-                _progressBar.PrintMessage(str(why))
-            else:
-                print('Warning:', why)
+            print('Warning:', why)
             continue
 
         # Get SUID and register the file with an existing or new series object
@@ -386,15 +293,10 @@ def read_files(path, showProgress=False, readPixelData=False, force=False):
         except AttributeError:
             continue  # some other kind of dicom file
         if suid not in series:
-            series[suid] = DicomSeries(suid, showProgress)
+            series[suid] = DicomSeries(suid)
         series[suid]._append(dcm)
 
-        # Show progress (note that we always start with a 0.0)
-        showProgress(float(count) / len(files))
         count += 1
-
-    # Finish progress
-    showProgress(None)
 
     # Make a list and sort, so that the order is deterministic
     series = list(series.values())
@@ -405,7 +307,6 @@ def read_files(path, showProgress=False, readPixelData=False, force=False):
         _splitSerieIfRequired(serie, series)
 
     # Finish all series
-    showProgress('Analysing series')
     series_ = []
     for i in range(len(series)):
         try:
@@ -413,8 +314,6 @@ def read_files(path, showProgress=False, readPixelData=False, force=False):
             series_.append(series[i])
         except Exception:
             pass  # Skip serie (probably report-like file without pixels)
-        showProgress(float(i + 1) / len(series))
-    showProgress(None)
 
     return series_
 
@@ -433,10 +332,9 @@ class DicomSeries(object):
     # the data, perform some checks, and set the shape and spacing
     # attributes of the instance.
 
-    def __init__(self, suid, showProgress):
+    def __init__(self, suid):
         # Init dataset list and the callback
         self._datasets = Sequence()
-        self._showProgress = showProgress
 
         # Init props
         self._suid = suid
@@ -487,9 +385,9 @@ class DicomSeries(object):
             fields.append(f"{info.PatientName}")
 
         # Also add dimensions
-        # if self.shape:
-        #     tmp = [str(d) for d in self.shape]
-        #     fields.append('x'.join(tmp))
+        if self.shape:
+            tmp = [str(d) for d in self.shape]
+            fields.append('x'.join(tmp))
 
         # Try adding more fields
         if 'SeriesDescription' in info:
@@ -530,9 +428,6 @@ class DicomSeries(object):
         if self.info is None:
             raise RuntimeError("Cannot return volume if series not finished.")
 
-        # Set callback to update progress
-        showProgress = self._showProgress
-
         # Init data (using what the dicom packaged produces as a reference)
         ds = self._datasets[0]
         slice = _getPixelDataFromDataset(ds)
@@ -540,15 +435,10 @@ class DicomSeries(object):
         vol[0] = slice
 
         # Fill volume
-        showProgress('Loading data:')
         ll = self.shape[0]
         for z in range(1, ll):
             ds = self._datasets[z]
             vol[z] = _getPixelDataFromDataset(ds)
-            showProgress(float(z) / ll)
-
-        # Finish
-        showProgress(None)
 
         # Done
         gc.collect()
@@ -630,10 +520,7 @@ class DicomSeries(object):
             if spacing != spacing2:
                 # We can still produce a volume, but we should notify the user
                 msg = 'Warning: spacing does not match.'
-                if self._showProgress is _progressCallback:
-                    _progressBar.PrintMessage(msg)
-                else:
-                    print(msg)
+                print(msg)
             # Store previous
             ds1 = ds2
 

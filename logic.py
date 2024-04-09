@@ -1,18 +1,17 @@
-from pydicom_series import read_files
+from hierarchy import read_files
+from popups import ErrorPop
 
 
-def read(dir):
-    
+def read(dir, force):
     try:
-        return read_files(dir, showProgress=False, readPixelData=False, force=True)
-    
-    except Exception as e:
-        print(f"Can't read data properly: {e}")
+        return read_files(dir, force=force)
+    except Exception:
+        return ErrorPop(msg="Can't read this data")
 
 
-def getPixelsForSerie(data):
-
-    try:
-        return data.get_pixel_array()
-    except Exception as e:
-        print(f"Can't get images data: {e}")
+def getPixelsForSerie(data, indexes):
+    #try:
+        return data.get_pixels_data(indexes)
+    # except Exception as e:
+    #     print(e)
+    #     return ErrorPop(msg="Can't get images data")

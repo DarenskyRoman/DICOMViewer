@@ -3,13 +3,16 @@ from PyQt6.QtWidgets import (
     QMainWindow,
     QFileDialog,
     QGraphicsScene,
-    QGraphicsPixmapItem
+    QGraphicsPixmapItem,
+    QTreeWidgetItem
 )
 from PyQt6.QtGui import QImage, QPixmap
 from PyQt6 import uic
 from qimage2ndarray import array2qimage
 
 import logic
+import popups
+
 
 class ImagesManipulator():
     def __init__(self, view, slider, images):
@@ -21,7 +24,7 @@ class ImagesManipulator():
 
         self.view.setScene(self.scene)
         self.scene.addItem(self.image_item)
-        #self.view.centerOn(self.image_item)
+        self.view.centerOn(self.image_item)
         self.slider.setMinimum(0)
         self.slider.setMaximum(len(self.images) - 1)
 
@@ -44,36 +47,81 @@ class UI(QMainWindow):
         super().__init__()
 
         uic.loadUi("silly.ui", self)
+        popups.Config.UI = self
         
-        self.openFile.triggered.connect(self.fileSearch)
-        self.seriesList.itemDoubleClicked.connect(self.seriesSelection)
+        self.openFile.triggered.connect(lambda: self.fileSearch(0))
+        self.openDirectory.triggered.connect(lambda: self.fileSearch(1))
+        self.treeWidget.itemDoubleClicked.connect(self.seriesSelection)
 
-    def seriesSelection(self):
+    def get_indexes(self, item):        
+        st = item.parent()
+        if st is None:
+            return None
+        
+        p = item.parent().parent()
+        if p is None:
+            return None
 
+        patient_index = self.treeWidget.indexOfTopLevelItem(p)
+        study_index = p.indexOfChild(st)
+        serie_index = st.indexOfChild(item)
+
+        return (patient_index, study_index, serie_index)
+
+    def seriesSelection(self, item):
+        indexes = self.get_indexes(item)
+        if indexes is None:
+            return
+        
         if hasattr(self, "axialImagesShow"):
             del self.axialImagesShow
 
-        index = self.seriesList.currentRow()
-        slices = logic.getPixelsForSerie(self.series[index])
-        del index
+        slices = logic.getPixelsForSerie(self.dcmh, indexes)
+        del indexes
 
-        self.axialImagesShow = ImagesManipulator(self.axialGraphicsView, self.axialSlider, slices)
+        if type(slices) == popups.ErrorPop:
+            slices.window.exec()
+            del slices
+        else:
+            self.axialImagesShow = ImagesManipulator(self.axialGraphicsView, self.axialSlider, slices[1])
+            del slices
 
-    def fileSearch(self):
-        dir = QFileDialog.getExistingDirectory(caption="Select directory")
+    def fileSearch(self, searchType):
+        if searchType == 0:
+            data = QFileDialog.getOpenFileName(caption="Select file")[0]
+        elif searchType == 1:
+            data = QFileDialog.getExistingDirectory(caption="Select directory")
 
-        if self.seriesList != 0:
-            self.seriesList.clear()
+        if data != "":
+            self.dcmh = logic.read(data, force=True)
+        
+            if type(self.dcmh) == popups.ErrorPop:
+                self.dcmh.window.exec()
+                del self.dcmh
+            else:
+                if self.treeWidget != 0:
+                    self.treeWidget.clear()
 
-        self.series = logic.read(dir)
+                self.drawTree(self.dcmh.get_tree())
 
-        i = 1
+    def drawTree(self, tree_data):
+        for p in tree_data:
+            patient = QTreeWidgetItem()
+            patient.setText(0, p["PatientInfo"])
 
-        for serieDescription in self.series:
-            self.seriesList.addItem(f"{i} {serieDescription.description}")
-            i += 1
+            for st in p["Studies"]:
+                study = QTreeWidgetItem(patient)
+                study.setText(0, st["StudyInfo"])
 
-        del i
+                for s in st["Series"]:
+                    serie = QTreeWidgetItem(study)
+                    serie.setText(0, s)
+                    study.addChild(serie)
+                
+                patient.addChild(study)
+
+            self.treeWidget.addTopLevelItem(patient)
+        
 
 if __name__ == "__main__": 
 

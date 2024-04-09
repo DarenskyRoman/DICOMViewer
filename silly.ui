@@ -21,41 +21,13 @@
   </property>
   <property name="styleSheet">
    <string notr="true">background-color: rgb(153, 153, 153);
-color: rgb(255, 255, 255);</string>
+color: rgb(0, 0, 0);</string>
   </property>
   <widget class="QWidget" name="centralwidget">
    <property name="styleSheet">
-    <string notr="true">background-color: rgb(211, 211, 211);</string>
+    <string notr="true">background-color: rgb(255, 255, 211);</string>
    </property>
    <layout class="QGridLayout" name="gridLayout">
-    <item row="1" column="0">
-     <layout class="QVBoxLayout" name="coronalLayout">
-      <item>
-       <widget class="QGraphicsView" name="coronalGraphicsView"/>
-      </item>
-      <item>
-       <widget class="QSlider" name="coronalSlider">
-        <property name="orientation">
-         <enum>Qt::Horizontal</enum>
-        </property>
-       </widget>
-      </item>
-     </layout>
-    </item>
-    <item row="3" column="0">
-     <layout class="QVBoxLayout" name="axialLayout">
-      <item>
-       <widget class="QGraphicsView" name="axialGraphicsView"/>
-      </item>
-      <item>
-       <widget class="QSlider" name="axialSlider">
-        <property name="orientation">
-         <enum>Qt::Horizontal</enum>
-        </property>
-       </widget>
-      </item>
-     </layout>
-    </item>
     <item row="1" column="1">
      <layout class="QVBoxLayout" name="sagittalLayout">
       <item>
@@ -70,56 +42,43 @@ color: rgb(255, 255, 255);</string>
       </item>
      </layout>
     </item>
-    <item row="3" column="1">
-     <layout class="QVBoxLayout" name="verticalLayout">
+    <item row="0" column="1">
+     <layout class="QVBoxLayout" name="coronalLayout">
       <item>
-       <widget class="QListWidget" name="seriesList">
-        <property name="sizePolicy">
-         <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
-          <horstretch>0</horstretch>
-          <verstretch>0</verstretch>
-         </sizepolicy>
-        </property>
-        <property name="minimumSize">
-         <size>
-          <width>0</width>
-          <height>0</height>
-         </size>
-        </property>
-        <property name="styleSheet">
-         <string notr="true">color: rgb(0, 0, 0);
-background-color: rgb(227, 227, 227);</string>
+       <widget class="QGraphicsView" name="coronalGraphicsView"/>
+      </item>
+      <item>
+       <widget class="QSlider" name="coronalSlider">
+        <property name="orientation">
+         <enum>Qt::Horizontal</enum>
         </property>
        </widget>
       </item>
+     </layout>
+    </item>
+    <item row="0" column="0" rowspan="2">
+     <layout class="QVBoxLayout" name="axialLayout">
       <item>
-       <widget class="QLabel" name="label">
-        <property name="sizePolicy">
-         <sizepolicy hsizetype="Minimum" vsizetype="Minimum">
-          <horstretch>0</horstretch>
-          <verstretch>0</verstretch>
-         </sizepolicy>
+       <widget class="QGraphicsView" name="axialGraphicsView"/>
+      </item>
+      <item>
+       <widget class="QSlider" name="axialSlider">
+        <property name="orientation">
+         <enum>Qt::Horizontal</enum>
         </property>
-        <property name="minimumSize">
-         <size>
-          <width>0</width>
-          <height>0</height>
-         </size>
-        </property>
-        <property name="font">
-         <font>
-          <pointsize>14</pointsize>
-         </font>
-        </property>
-        <property name="styleSheet">
-         <string notr="true">color: rgb(0, 0, 0);</string>
-        </property>
-        <property name="text">
-         <string>Series</string>
-        </property>
-        <property name="alignment">
-         <set>Qt::AlignCenter</set>
-        </property>
+       </widget>
+      </item>
+     </layout>
+    </item>
+    <item row="0" column="2" rowspan="2">
+     <layout class="QVBoxLayout" name="verticalLayout">
+      <item>
+       <widget class="QTreeWidget" name="treeWidget">
+        <column>
+         <property name="text">
+          <string notr="true">1</string>
+         </property>
+        </column>
        </widget>
       </item>
      </layout>
@@ -137,9 +96,10 @@ background-color: rgb(227, 227, 227);</string>
    </property>
    <widget class="QMenu" name="menuFile">
     <property name="title">
-     <string>File</string>
+     <string>Open</string>
     </property>
     <addaction name="openFile"/>
+    <addaction name="openDirectory"/>
    </widget>
    <addaction name="menuFile"/>
   </widget>
@@ -150,7 +110,12 @@ background-color: rgb(227, 227, 227);</string>
   </action>
   <action name="openFile">
    <property name="text">
-    <string>Open</string>
+    <string>File</string>
+   </property>
+  </action>
+  <action name="openDirectory">
+   <property name="text">
+    <string>Directory</string>
    </property>
   </action>
  </widget>
