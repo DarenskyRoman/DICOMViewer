@@ -7,12 +7,6 @@ import numpy as np
 
 from dicom_model.patient import Patient
 
-
-# file = "DICOM/19061421/00000447"
-
-# ds = pydicom.dcmread(file, force=True)
-# ds.file_meta.TransferSyntaxUID = UID("1.2.840.10008.1.2.1")
-
 def __files_walk(start_path):
     list = []
     for root, dirs, files in os.walk(start_path):
@@ -42,93 +36,6 @@ def __tsUID_standart(file):
     if not hasattr(file.file_meta, "TransferSyntaxUID"):
         file.file_meta.TransferSyntaxUID = UID("1.2.840.10008.1.2")
     return file
-
-
-def _getPixelDataFromDataset(ds):
-    # Get original element
-    el = ds['PixelData']
-
-    # Get data
-    data = ds.pixel_array
-
-    # Remove data (mark as deferred)
-    ds['PixelData'] = el
-    del ds._pixel_array
-
-    # Obtain slope and offset
-    slope = 1
-    offset = 0
-    needFloats = False
-    needApplySlopeOffset = False
-    if 'RescaleSlope' in ds:
-        needApplySlopeOffset = True
-        slope = ds.RescaleSlope
-    if 'RescaleIntercept' in ds:
-        needApplySlopeOffset = True
-        offset = ds.RescaleIntercept
-    if int(slope) != slope or int(offset) != offset:
-        needFloats = True
-    if not needFloats:
-        slope, offset = int(slope), int(offset)
-
-    # Apply slope and offset
-    if needApplySlopeOffset:
-
-        # Maybe we need to change the datatype?
-        if data.dtype in [np.float32, np.float64]:
-            pass
-        elif needFloats:
-            data = data.astype(np.float32)
-        else:
-            # Determine required range
-            minReq, maxReq = data.min(), data.max()
-            minReq = min(
-                [minReq, minReq * slope + offset, maxReq * slope + offset])
-            maxReq = max(
-                [maxReq, minReq * slope + offset, maxReq * slope + offset])
-
-            # Determine required datatype from that
-            dtype = None
-            if minReq < 0:
-                # Signed integer type
-                maxReq = max([-minReq, maxReq])
-                if maxReq < 2 ** 7:
-                    dtype = np.int8
-                elif maxReq < 2 ** 15:
-                    dtype = np.int16
-                elif maxReq < 2 ** 31:
-                    dtype = np.int32
-                else:
-                    dtype = np.float32
-            else:
-                # Unsigned integer type
-                if maxReq < 2 ** 8:
-                    dtype = np.uint8
-                elif maxReq < 2 ** 16:
-                    dtype = np.uint16
-                elif maxReq < 2 ** 32:
-                    dtype = np.uint32
-                else:
-                    dtype = np.float32
-
-            # Change datatype
-            if dtype != data.dtype:
-                data = data.astype(dtype)
-
-        # Apply slope and offset
-        try:
-            data *= slope
-            data += offset
-        except:
-            data = data * slope
-            data = data + offset
-
-    # Done
-    return data
-
-
-def __sorting(files):
-    return
 
 def read_files(path, force=False):
     files = [pydicom.dcmread(file, force=force) for file in __files_walk(path)]
@@ -189,7 +96,3 @@ class DicomHierarchy:
         if getattr(s.images[0], "Modality") != "CT":
             singlePlane = True
         return (singlePlane, s.get_pixel_array())
-
-if __name__=="__main__":
-
-    read_files("DICOM", force=True)

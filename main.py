@@ -3,12 +3,14 @@ from PyQt6.QtWidgets import (
     QMainWindow,
     QFileDialog,
     QGraphicsScene,
+    QGraphicsItem,
     QGraphicsPixmapItem,
     QTreeWidgetItem
 )
 from PyQt6.QtGui import QImage, QPixmap
-from PyQt6 import uic
+from PyQt6 import QtCore, uic
 from qimage2ndarray import array2qimage
+import numpy as np
 
 import logic
 import popups
@@ -20,6 +22,7 @@ class ImagesManipulator():
         self.view = view
         self.slider = slider
         self.image_item = QGraphicsPixmapItem()
+        self.image_item.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsMovable)
         self.images = self.setImages(images)
 
         self.view.setScene(self.scene)
@@ -30,8 +33,21 @@ class ImagesManipulator():
 
         self.slider.valueChanged.connect(self.update_image)
         self.update_image(0)
+        self.view.fitInView(self.image_item, QtCore.Qt.AspectRatioMode.KeepAspectRatio)
+        self.view.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.view.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.view.wheelEvent = self.wheelEvent
+
+    def wheelEvent(self, event):
+        if event.angleDelta().y() > 0:
+            scale = 1.25
+        else:
+            scale = .8
+        self.view.scale(scale, scale)
 
     def setImages(self, images):
+        if len(images.shape) == 2:
+            return [array2qimage(images, normalize=True)]
         return [array2qimage(image, normalize=True) for image in images]
 
     def update_image(self, value):
@@ -76,6 +92,12 @@ class UI(QMainWindow):
         if hasattr(self, "axialImagesShow"):
             del self.axialImagesShow
 
+        if hasattr(self, "coronalImagesShow"):
+            del self.coronalImagesShow
+
+        if hasattr(self, "sagittalImagesShow"):
+            del self.sagittalImagesShow
+
         slices = logic.getPixelsForSerie(self.dcmh, indexes)
         del indexes
 
@@ -83,8 +105,15 @@ class UI(QMainWindow):
             slices.window.exec()
             del slices
         else:
-            self.axialImagesShow = ImagesManipulator(self.axialGraphicsView, self.axialSlider, slices[1])
-            del slices
+            singlePlane = slices[0] 
+            if singlePlane == True:
+                self.axialImagesShow = ImagesManipulator(self.axialGraphicsView, self.axialSlider, slices[1])
+                del slices  
+            else:
+                self.axialImagesShow = ImagesManipulator(self.axialGraphicsView, self.axialSlider, slices[1])
+                self.coronalImagesShow = ImagesManipulator(self.coronalGraphicsView, self.coronalSlider, np.rot90(slices[1], axes=(1, 0)))
+                self.sagittalImagesShow = ImagesManipulator(self.sagittalGraphicsView, self.sagittalSlider, np.rot90(np.rot90(slices[1], axes=(0, 1)), axes=(2, 0)))
+                del slices 
 
     def fileSearch(self, searchType):
         if searchType == 0:

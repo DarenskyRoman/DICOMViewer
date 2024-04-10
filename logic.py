@@ -10,8 +10,7 @@ def read(dir, force):
 
 
 def getPixelsForSerie(data, indexes):
-    #try:
+    try:
         return data.get_pixels_data(indexes)
-    # except Exception as e:
-    #     print(e)
-    #     return ErrorPop(msg="Can't get images data")
+    except Exception:
+        return ErrorPop(msg="Can't get images data")
