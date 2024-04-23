@@ -1,2 +1,2 @@
-# silly-dicom-viewer
+# DICOMViewer
 Very simple DICOM images viewer
