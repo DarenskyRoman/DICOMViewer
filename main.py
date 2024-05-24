@@ -7,12 +7,12 @@ from PyQt6.QtWidgets import (
     QGraphicsPixmapItem,
     QTreeWidgetItem
 )
-from PyQt6.QtGui import QImage, QPixmap
+from PyQt6.QtGui import QPixmap
 from PyQt6 import QtCore, uic
 from qimage2ndarray import array2qimage
 import numpy as np
 
-import logic
+from hierarchy import read_files
 import popups
 
 
@@ -58,18 +58,17 @@ class ImagesManipulator():
             print("Error: No image at index", value)
     
 
-class UI(QMainWindow):
+class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
 
-        uic.loadUi("silly.ui", self)
+        uic.loadUi("DICOMViewer.ui", self)
         popups.Config.UI = self
         
-        self.openFile.triggered.connect(lambda: self.fileSearch(0))
-        self.openDirectory.triggered.connect(lambda: self.fileSearch(1))
+        self.openDirectory.triggered.connect(self.directorySearch)
         self.treeWidget.itemDoubleClicked.connect(self.seriesSelection)
 
-    def get_indexes(self, item):        
+    def getIndexes(self, item):        
         st = item.parent()
         if st is None:
             return None
@@ -85,7 +84,7 @@ class UI(QMainWindow):
         return (patient_index, study_index, serie_index)
 
     def seriesSelection(self, item):
-        indexes = self.get_indexes(item)
+        indexes = self.getIndexes(item)
         if indexes is None:
             return
         
@@ -98,13 +97,10 @@ class UI(QMainWindow):
         if hasattr(self, "sagittalImagesShow"):
             del self.sagittalImagesShow
 
-        slices = logic.getPixelsForSerie(self.dcmh, indexes)
-        del indexes
-
-        if type(slices) == popups.ErrorPop:
-            slices.window.exec()
-            del slices
-        else:
+        try:
+            slices = self.dcmh.get_pixels_data(indexes)
+            del indexes
+            
             singlePlane = slices[0] 
             if singlePlane == True:
                 self.axialImagesShow = ImagesManipulator(self.axialGraphicsView, self.axialSlider, slices[1])
@@ -113,25 +109,25 @@ class UI(QMainWindow):
                 self.axialImagesShow = ImagesManipulator(self.axialGraphicsView, self.axialSlider, slices[1])
                 self.coronalImagesShow = ImagesManipulator(self.coronalGraphicsView, self.coronalSlider, np.rot90(slices[1], axes=(1, 0)))
                 self.sagittalImagesShow = ImagesManipulator(self.sagittalGraphicsView, self.sagittalSlider, np.rot90(np.rot90(slices[1], axes=(0, 1)), axes=(2, 0)))
-                del slices 
+                del slices
 
-    def fileSearch(self, searchType):
-        if searchType == 0:
-            data = QFileDialog.getOpenFileName(caption="Select file")[0]
-        elif searchType == 1:
-            data = QFileDialog.getExistingDirectory(caption="Select directory")
+        except Exception:
+            popup = popups.ErrorPop(msg="Can't get images data")
+            popup.window.exec() 
 
-        if data != "":
-            self.dcmh = logic.read(data, force=True)
-        
-            if type(self.dcmh) == popups.ErrorPop:
-                self.dcmh.window.exec()
-                del self.dcmh
-            else:
+    def directorySearch(self):
+        dir = QFileDialog.getExistingDirectory(caption="Select directory")
+
+        if dir != "":
+            try:
+                self.dcmh = read_files(dir, force=True)
                 if self.treeWidget != 0:
                     self.treeWidget.clear()
 
                 self.drawTree(self.dcmh.get_tree())
+            except Exception:
+                popup = popups.ErrorPop(msg="Can't read this data")
+                popup.window.exec()
 
     def drawTree(self, tree_data):
         for p in tree_data:
@@ -155,6 +151,6 @@ class UI(QMainWindow):
 if __name__ == "__main__": 
 
     app = QApplication([])
-    window = UI()
+    window = MainWindow()
     window.show()
     app.exec()

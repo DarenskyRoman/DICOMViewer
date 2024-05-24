@@ -1,12 +1,11 @@
 from PyQt6.QtWidgets import QMessageBox 
-from main import UI
+from main import MainWindow
 from dataclasses import dataclass
-
 
 
 @dataclass
 class Config:
-    UI: UI
+    UI: MainWindow
 
 class ErrorPop():
     def __init__(self, ok_btn=False, msg="Ooh!"):

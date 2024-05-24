@@ -1,11 +1,10 @@
 import os
-import gc
 
 import pydicom
 from pydicom.uid import UID
-import numpy as np
 
 from dicom_model.patient import Patient
+
 
 def __files_walk(start_path):
     list = []
@@ -18,8 +17,6 @@ def __files_walk(start_path):
 
 
 def __validate(file):
-    if not hasattr(file, "Modality"):
-        return False
     if not hasattr(file, "SOPClassUID"):
         return False
     if not hasattr(file, "StudyInstanceUID"):
