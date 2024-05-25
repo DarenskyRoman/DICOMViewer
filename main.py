@@ -89,13 +89,16 @@ class MainWindow(QMainWindow):
             return
         
         if hasattr(self, "axialImagesShow"):
+            self.axialImagesShow.scene.clear()
             del self.axialImagesShow
 
         if hasattr(self, "coronalImagesShow"):
+            self.coronalImagesShow.scene.clear()
             del self.coronalImagesShow
-
+            
         if hasattr(self, "sagittalImagesShow"):
-            del self.sagittalImagesShow
+            self.sagittalImagesShow.scene.clear()
+            del self.sagittalImagesShow            
 
         try:
             slices = self.dcmh.get_pixels_data(indexes)
