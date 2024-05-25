@@ -1,5 +1,9 @@
 # DICOMViewer
 
+[![ru](https://img.shields.io/badge/lang-ru-blue.svg)](https://github.com/DarenskyRoman/DICOMViewer/blob/main/README.md)
+[![en](https://img.shields.io/badge/lang-en-pink.svg)](https://github.com/DarenskyRoman/DICOMViewer/blob/main/README.en.md)
+
+
 Приложение для просмотра компьютерных томограмм и рентгенограмм в формате DICOM (.dcm).
 
 ## Возможности
